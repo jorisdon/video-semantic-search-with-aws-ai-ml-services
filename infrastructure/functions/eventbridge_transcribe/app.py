@@ -23,41 +23,52 @@ def lambda_handler(event, context):
     )
     item = response["Items"][0]
     jobId = item["JobId"]
+    sfTaskToken = item["LambdaTranscribeTaskToken"]
+    stepfunctions = boto3.client("stepfunctions")
 
-    subtitle = get_subtitle(os.environ["bucket_transcripts"], jobId + ".srt")
-    processed_transcript = process_transcript(subtitle)
-    s3_client.put_object(
-        Body=json.dumps(processed_transcript).encode("utf-8"),
-        Bucket=os.environ["bucket_transcripts"],
-        Key=f"{jobId}.json",
-        ContentType="application/json",
-    )
-
-    client = get_opensearch_client(os.environ["aoss_host"], os.environ["region"])
-
-    for sentence in processed_transcript:
-        aoss_request_body = json.dumps(
-        {
-            "jobId": jobId,
-            "video_name": item["Input"],
-            "transcript_id": f"{sentence["sentence_startTime"] - sentence["sentence_endTime"]}",
-            "transcript_startTime": sentence["sentence_startTime"],
-            "transcript_endTime": sentence["sentence_endTime"],
-            "transcript": sentence["sentence"],
-            "transcript_vector": get_text_embedding(os.environ["text_embedding_model"], sentence["sentence"])
-        }
-    )
-        response = client.index(
-            index=os.environ["aoss_audio_index"],
-            body=aoss_request_body,
-            params={"timeout": 60},
+    try:
+        subtitle = get_subtitle(os.environ["bucket_transcripts"], jobId + ".srt")
+        processed_transcript = process_transcript(subtitle)
+        s3_client.put_object(
+            Body=json.dumps(processed_transcript).encode("utf-8"),
+            Bucket=os.environ["bucket_transcripts"],
+            Key=f"{jobId}.json",
+            ContentType="application/json",
         )
 
-    sfTaskToken = item["LambdaTranscribeTaskToken"]
+        client = get_opensearch_client(os.environ["aoss_host"], os.environ["region"])
 
-    # sendTaskSuccess to Step Function to notify Transcribe has successfully finished the job
-    stepfunctions = boto3.client("stepfunctions")
-    sfResponse = stepfunctions.send_task_success(taskToken=sfTaskToken, output="{}")
+        for sentence in processed_transcript:
+            embedding = get_text_embedding(os.environ["text_embedding_model"], sentence["sentence"])
+            if embedding is None:
+                continue
+            aoss_request_body = json.dumps(
+            {
+                "jobId": jobId,
+                "video_name": item["Input"],
+                "transcript_id": f"{sentence["sentence_startTime"] - sentence["sentence_endTime"]}",
+                "transcript_startTime": sentence["sentence_startTime"],
+                "transcript_endTime": sentence["sentence_endTime"],
+                "transcript": sentence["sentence"],
+                "transcript_vector": embedding
+            }
+        )
+            response = client.index(
+                index=os.environ["aoss_audio_index"],
+                body=aoss_request_body,
+                params={"timeout": 60},
+            )
+
+        # sendTaskSuccess to Step Function to notify Transcribe has successfully finished the job
+        sfResponse = stepfunctions.send_task_success(taskToken=sfTaskToken, output="{}")
+    except Exception as e:
+        print(f"Error processing transcription for job {jobId}: {e}")
+        stepfunctions.send_task_failure(
+            taskToken=sfTaskToken,
+            error="TranscribeProcessingError",
+            cause=str(e)[:256],
+        )
+        raise
 
     return {"statusCode": 200}
 
@@ -163,7 +174,9 @@ def get_text_embedding(text_embedding_model, text):
     else:
         if len(text) > 2048:
             text = text[:2048]
-        body = json.dumps({"texts": [text], "input_type": "search_document"})
+        if not text.strip():
+            return None
+        body = json.dumps({"texts": [text], "input_type": "search_document", "embedding_types": ["float"], "output_dimension": 1024})
         response = bedrock_client.invoke_model(
             body=body,
             modelId=text_embedding_model,
@@ -171,6 +184,10 @@ def get_text_embedding(text_embedding_model, text):
             contentType=content_type,
         )
         response_body = json.loads(response["body"].read())
-        embedding = response_body.get("embeddings")[0]
+        embeddings = response_body.get("embeddings")
+        if isinstance(embeddings, dict):
+            embedding = embeddings["float"][0]
+        else:
+            embedding = embeddings[0]
 
     return embedding
