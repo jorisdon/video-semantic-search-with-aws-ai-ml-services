@@ -30,15 +30,15 @@ Parameters:
   BedrockLlmNova:
     Type: String
     Description: Bedrock Large Language Model
-    Default: us.amazon.nova-pro-v1:0
+    Default: us.amazon.nova-premier-v1:0
   BedrockLlmSonnet37:
     Type: String
     Description: Bedrock Large Language Model
-    Default: us.anthropic.claude-3-7-sonnet-20250219-v1:0
+    Default: us.anthropic.claude-sonnet-4-6
   BedrockLlmSonnet4:
     Type: String
     Description: Bedrock Large Language Model
-    Default: us.anthropic.claude-sonnet-4-20250514-v1:0
+    Default: us.anthropic.claude-sonnet-4-6
 
 Globals:
   Function:
