@@ -436,7 +436,7 @@ def get_text_embedding(text_embedding_model, shot_description):
         embedding = response_body.get("embedding")
     else:
         body = json.dumps(
-            {"texts": [shot_description], "input_type": "search_document"}
+            {"texts": [shot_description], "input_type": "search_document", "embedding_types": ["float"], "output_dimension": 1024}
         )
         response = bedrock_client.invoke_model(
             body=body,
@@ -445,7 +445,11 @@ def get_text_embedding(text_embedding_model, shot_description):
             contentType=content_type,
         )
         response_body = json.loads(response["body"].read())
-        embedding = response_body.get("embeddings")[0]
+        embeddings = response_body.get("embeddings")
+        if isinstance(embeddings, dict):
+            embedding = embeddings["float"][0]
+        else:
+            embedding = embeddings[0]
 
     return embedding
 
