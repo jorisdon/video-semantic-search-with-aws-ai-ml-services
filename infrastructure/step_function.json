@@ -212,7 +212,7 @@
         }
       ],
       "ItemsPath": "$[1].RekognitionShotDetectionParams.Shots",
-      "ToleratedFailurePercentage": 2,
+      "ToleratedFailurePercentage": 5,
       "ResultPath": "$"
     },
     "Video Shot (2)": {
@@ -278,7 +278,7 @@
       "Label": "VideoShot2",
       "MaxConcurrency": 10,
       "ItemsPath": "$",
-      "ToleratedFailurePercentage": 2,
+      "ToleratedFailurePercentage": 5,
       "ResultPath": null,
       "Catch": [
         {
