@@ -10,7 +10,21 @@ from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
 
 def lambda_handler(event, context):
     dynamodb_table = os.environ["vss_dynamodb_table"]
-    jobId = event[0]["jobId"]
+
+    # Extract jobId from various event shapes:
+    # - Normal: [{"jobId": "..."}]  (from Map state)
+    # - Catch with ResultPath null: [{"jobId": "..."}, ...] (original input preserved)
+    # - Catch default: {"Error": "...", "Cause": "..."}
+    jobId = None
+    if isinstance(event, list) and len(event) > 0 and "jobId" in event[0]:
+        jobId = event[0]["jobId"]
+    elif isinstance(event, dict) and "jobId" in event:
+        jobId = event["jobId"]
+
+    if not jobId:
+        logging.error(f"Could not extract jobId from event: {json.dumps(event)[:500]}")
+        return {"statusCode": 500, "body": "Could not determine jobId"}
+
     status = "Failed"
     endTime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     updatejobStatus(dynamodb_table, jobId, status, endTime)
