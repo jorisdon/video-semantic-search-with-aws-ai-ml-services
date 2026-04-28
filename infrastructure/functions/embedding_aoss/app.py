@@ -96,7 +96,9 @@ def get_text_embedding(text_embedding_model, text):
     else:
         if len(text) > 2048:
             text = text[:2048]
-        body = json.dumps({"texts": [text], "input_type": "search_document"})
+        if not text.strip():
+            return None
+        body = json.dumps({"texts": [text], "input_type": "search_document", "embedding_types": ["float"], "output_dimension": 1024})
         response = bedrock_client.invoke_model(
             body=body,
             modelId=text_embedding_model,
@@ -104,7 +106,11 @@ def get_text_embedding(text_embedding_model, text):
             contentType=content_type,
         )
         response_body = json.loads(response["body"].read())
-        embedding = response_body.get("embeddings")[0]
+        embeddings = response_body.get("embeddings")
+        if isinstance(embeddings, dict):
+            embedding = embeddings["float"][0]
+        else:
+            embedding = embeddings[0]
 
     return embedding
 
