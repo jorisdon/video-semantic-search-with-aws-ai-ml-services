@@ -33,7 +33,7 @@
                 }
               ],
               "End": true,
-              "TimeoutSeconds": 600,
+              "TimeoutSeconds": 1800,
               "ResultPath": "$.TranscribeParams"
             }
           }
