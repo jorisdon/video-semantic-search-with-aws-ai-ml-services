@@ -74,7 +74,8 @@
       "Catch": [
         {
           "ErrorEquals": ["States.ALL"],
-          "Next": "Notify failed task"
+          "Next": "Notify failed task",
+          "ResultPath": "$.error"
         }
       ]
     },
@@ -206,6 +207,7 @@
         {
           "ErrorEquals": ["States.ALL"],
           "Next": "Notify failed task",
+          "ResultPath": "$.error",
           "ResultPath": null
         }
       ],
@@ -282,6 +284,7 @@
         {
           "ErrorEquals": ["States.ALL"],
           "Next": "Notify failed task",
+          "ResultPath": "$.error",
           "ResultPath": null
         }
       ]
