@@ -22,11 +22,11 @@ Parameters:
   BedrockImageEmbeddingModel:
     Type: String
     Description: Bedrock Image Embedding Model
-    Default: amazon.titan-embed-image-v1
+    Default: twelvelabs.marengo-embed-3-0-v1:0
   BedrockImageEmbeddingDimension:
     Type: Number
     Description: Bedrock Image Embedding Dimension
-    Default: 1024
+    Default: 512
   BedrockLlmNova:
     Type: String
     Description: Bedrock Large Language Model
