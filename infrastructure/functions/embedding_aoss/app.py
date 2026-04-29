@@ -120,19 +120,24 @@ def get_image_embedding(bucket, jobId, image):
     image_content = s3_object["Body"].read()
     base64_image_string = base64.b64encode(image_content).decode()
 
-    accept = "application/json"
-    content_type = "application/json"
-
-    body = json.dumps({"inputImage": base64_image_string})
+    model_id = os.environ["image_embedding_model"]
+    if model_id.startswith("twelvelabs"):
+        body = json.dumps({"inputType": "image", "image": {"mediaSource": {"base64String": base64_image_string}}})
+    else:
+        body = json.dumps({"inputImage": base64_image_string})
 
     response = bedrock_client.invoke_model(
         body=body,
-        modelId=os.environ["image_embedding_model"],
-        accept=accept,
-        contentType=content_type,
+        modelId=model_id,
+        accept="application/json",
+        contentType="application/json",
     )
     response_body = json.loads(response["body"].read())
-    embedding = response_body.get("embedding")
+
+    if model_id.startswith("twelvelabs"):
+        embedding = response_body["data"][0]["embedding"]
+    else:
+        embedding = response_body.get("embedding")
     return embedding
 
 
