@@ -54,6 +54,7 @@ def lambda_handler(event, context):
             os.environ["region"],
             os.environ["aoss_visual_index"],
             os.environ["text_embedding_dimension"],
+            os.environ["image_embedding_dimension"],
         )
     except Exception as e:
         logging.error(f"An error occurred: {e}")
@@ -81,7 +82,7 @@ def lambda_handler(event, context):
     return {"statusCode": 200, "body": json.dumps(response)}
 
 
-def create_visual_index(host, region, index, len_embedding):
+def create_visual_index(host, region, index, len_text_embedding, len_image_embedding):
     host = host.split("://")[1] if "://" in host else host
     credentials = boto3.Session().get_credentials()
     auth = AWSV4SignerAuth(credentials, region, "aoss")
@@ -96,6 +97,13 @@ def create_visual_index(host, region, index, len_embedding):
     )
 
     exist = client.indices.exists(index=index)
+    if exist:
+        mapping = client.indices.get_mapping(index=index)
+        current_dim = mapping[index]["mappings"]["properties"].get("shot_image_vector", {}).get("dimension", 0)
+        if int(current_dim) != int(len_image_embedding):
+            print(f"Recreating visual index: dimension changed from {current_dim} to {len_image_embedding}")
+            client.indices.delete(index=index)
+            exist = False
     if not exist:
         print("Creating visual index")
         index_body = {
@@ -112,7 +120,7 @@ def create_visual_index(host, region, index, len_embedding):
                     "shot_transcript": {"type": "text"},
                     "shot_image_vector": {
                         "type": "knn_vector",
-                        "dimension": len_embedding,
+                        "dimension": len_image_embedding,
                         "method": {
                             "engine": "nmslib",
                             "space_type": "cosinesimil",
@@ -122,7 +130,7 @@ def create_visual_index(host, region, index, len_embedding):
                     },
                     "shot_desc_vector": {
                         "type": "knn_vector",
-                        "dimension": len_embedding,
+                        "dimension": len_text_embedding,
                         "method": {
                             "engine": "nmslib",
                             "space_type": "cosinesimil",
@@ -132,7 +140,7 @@ def create_visual_index(host, region, index, len_embedding):
                     },
                     "shot_transcript_vector": {
                         "type": "knn_vector",
-                        "dimension": len_embedding,
+                        "dimension": len_text_embedding,
                         "method": {
                             "engine": "nmslib",
                             "space_type": "cosinesimil",
