@@ -457,10 +457,16 @@ def get_text_embedding(text_embedding_model, shot_description):
 def get_titan_image_embedding(embedding_model, query):
     accept = "application/json"
     content_type = "application/json"
-    body = json.dumps({"inputImage": query})
+    if embedding_model.startswith("twelvelabs"):
+        body = json.dumps({"inputType": "image", "image": {"mediaSource": {"base64String": query}}})
+    else:
+        body = json.dumps({"inputImage": query})
     response = bedrock_client.invoke_model(
         body=body, modelId=embedding_model, accept=accept, contentType=content_type
     )
     response_body = json.loads(response["body"].read())
-    embedding = response_body.get("embedding")
+    if embedding_model.startswith("twelvelabs"):
+        embedding = response_body["data"][0]["embedding"]
+    else:
+        embedding = response_body.get("embedding")
     return embedding
