@@ -17,10 +17,19 @@ def lambda_handler(event, context):
 
     transcribeTaskId = event["detail"]["TranscriptionJobName"]
 
-    response = table.query(
-        IndexName="TranscribeGSI",
-        KeyConditionExpression=Key("TranscribeTaskId").eq(transcribeTaskId),
-    )
+    import time
+    for attempt in range(5):
+        response = table.query(
+            IndexName="TranscribeGSI",
+            KeyConditionExpression=Key("TranscribeTaskId").eq(transcribeTaskId),
+        )
+        if response["Items"]:
+            break
+        time.sleep(3)
+    else:
+        print(f"No DynamoDB record found for TranscribeTaskId {transcribeTaskId} after retries")
+        return {"statusCode": 404}
+
     item = response["Items"][0]
     jobId = item["JobId"]
     sfTaskToken = item["LambdaTranscribeTaskToken"]
