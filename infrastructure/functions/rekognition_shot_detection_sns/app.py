@@ -33,6 +33,20 @@ def lambda_handler(event, context):
 
     frames, shots = getShotDetectionResults(jobId, video_name, rekognitionTaskId)
 
+    if not frames:
+        video_duration = getVideoDuration(rekognitionTaskId)
+        sample_interval = 5000  # sample every 5 seconds
+        frames = list(range(0, video_duration, sample_interval))
+        if not frames or frames[-1] != video_duration:
+            frames.append(video_duration)
+        shots = [{
+            "jobId": jobId,
+            "video_name": video_name,
+            "shot_startTime": 0,
+            "shot_endTime": video_duration,
+            "frames": frames,
+        }]
+
     generateImages(
         jobId,
         os.environ["bucket_videos"],
@@ -52,6 +66,11 @@ def lambda_handler(event, context):
     )
 
     return {"statusCode": 200}
+
+
+def getVideoDuration(rekognitionTaskId):
+    response = rek_client.get_segment_detection(JobId=rekognitionTaskId, MaxResults=1)
+    return response.get("VideoMetadata", [{}])[0].get("DurationMillis", 1000)
 
 
 def getShotDetectionResults(jobId, video_name, rekognitionTaskId):
